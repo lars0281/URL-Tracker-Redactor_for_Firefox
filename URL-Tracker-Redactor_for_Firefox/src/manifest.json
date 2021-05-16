@@ -6,8 +6,8 @@
     "homepage_url": "https://github.com/lars0281/URL-Tracker-Redactor_for_Firefox",
     "version": "1.0.4",
     "icons": {
-        "48": "icons/LL-48.png",
-        "96": "icons/LL-96.png"
+        "48": "icons/UTR-48.png",
+        "96": "icons/UTR-96.png"
     },
     "browser_specific_settings": {
         "gecko": {
@@ -17,10 +17,10 @@
     },
     "browser_action": {
        "browser_style": true,
-        "default_icon": "icons/LL-177.png",
+        "default_icon": "icons/UTR-96.png",
         "theme_icons": [{
-                "light": "icons/LL-32.png",
-                "dark": "icons/LL-32.png",
+                "light": "icons/UTR-32.png",
+                "dark": "icons/UTR-32.png",
                 "size": 32
             }
         ],
