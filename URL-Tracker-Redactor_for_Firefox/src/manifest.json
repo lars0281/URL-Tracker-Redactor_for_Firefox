@@ -11,7 +11,7 @@
     },
     "browser_specific_settings": {
         "gecko": {
-            "id": "urltrackerredactor@glovebox.com",
+            "id": "urltrackerredactor13@glovebox.com",
             "strict_min_version": "63.0"
         }
     },
@@ -33,13 +33,9 @@
            "background.js"
         ]
     },
-    "content_scripts": [{
-            "matches": ["<all_urls>"],
-            "js": ["content_scripts/RevealUrl.js"]
-        }
-    ],
     "permissions": [
         "webRequest",
+        "webRequestBlocking",
         "activeTab",
         "tabs",
         "contextMenus",

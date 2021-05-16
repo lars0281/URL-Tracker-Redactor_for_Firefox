@@ -988,13 +988,6 @@ function submitAddNewRule(type, key) {
 
 
 
-function deletePrivateKey(u) {
-    console.debug("navigate-collection.js: deletePrivateKey" + u);
-
-    deleteFromIndexedDB('keyPairsDB', 'keyPairsStore', u);
-
-}
-
 function deleteObject(uuid, type, key) {
     console.debug("deleteObject");
 

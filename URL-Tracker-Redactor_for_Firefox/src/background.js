@@ -1,5 +1,5 @@
 
-console.log("start LinkLooker background");
+console.debug("start URL-Tracker-Redactor background");
 
 let salt;
 
@@ -9,7 +9,7 @@ let indexedDB;
 
 // databases:
 
-// Apr 28 2021
+// May 15 2021
 
 
 /*
@@ -55,32 +55,525 @@ let indexedDB;
  * 
  */
 
+// processing rules related
+
+var steps = [];
+
+// only regexp procedures are accepted at this point
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "utm_source",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove Google Analytics tags"
+});
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+        value: "utm_campaign",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove Google Analytics tags"
+});
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+        value: "utm_medium",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove Google Analytics tags"
+});
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+        value: "utm_term",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove Google Analytics tags"
+});
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "utm_content",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove Google Analytics tags"
+});
+
+
+
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "hsa_acc",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove HubSpot tracking tags"
+
+});
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "hsa_cam",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove HubSpot tracking tags"
+
+});
+
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "hsa_grp",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove HubSpot tracking tags"
+
+});
+
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "hsa_ad",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove HubSpot tracking tags"
+
+});
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "hsa_net",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove HubSpot tracking tags"
+
+});
+
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "hsa_src",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove HubSpot tracking tags"
+
+});
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "hsa_ver",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove HubSpot tracking tags"
+
+});
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "hsa_la",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove HubSpot tracking tags"
+
+});
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "hsa_ol",
+            notes: ""
+        }
+    ],
+    notes: "Edit querystring to remove HubSpot tracking tags"
+
+});
+
+
+steps.push({
+    procedure: "qs_remove_param",
+    parameters: [{
+            value: "li_fat_id",
+            notes: "Edit querystring to remove tracking id from linkind"
+        }
+    ],
+    notes: "Edit querystring to remove linkedin tracking tags"
+
+});
+
+/*
+ * list of query string parameter which are removed
+ * 
+ * 
+ * */
+
+
 
 // context menu related
 
 
-/*
- * to add context menu item for analysing links Added in v 1.0
- */
 
-browser.contextMenus.create({
-    id: "glovebox-link-reveal",
-    title: "reveal the true endpoint of this link",
-    contexts: ["link"]
+
+
+var EXLUDE_ITEMS = {};
+var WEBREQUEST_DATA = {};
+var capture_checkbox = true;
+var auto_scroll_checkbox = true;
+StorageChange();
+
+
+
+browser.webRequest.onBeforeRequest.addListener(
+  function(test) {
+	  console.debug("browser.webRequest.onBeforeRequest" );
+	  console.debug("browser.webRequest.onBeforeRequest" + test);
+    test["typ"] = "onBeforeRequest";
+    //setdata_webRequest(test);
+    //console.debug(computed_urlfilters(steps));
+    return {redirectUrl: computed_redirect_url(test)};
+    //return { redirectUrl: 'http://www.google.com' }
+  },
+  {
+	  // compute the - potentially long - list of filters from the rewrite step rules (all of type qs_remove_param)
+//urls: ["*://*/*&utm_source=*", "*://*/*&utm_campaign=*", "*://*/*&utm_medium=*", "*://*/*&utm_term=*", "*://*/*&utm_content=*" ]
+	  	 urls: computed_urlfilters(steps)
+//    urls: ["<all_urls>"]
+  },
+  ["blocking"]
+);
+// "blocking"  "requestBody"
+
+
+// url match syntax
+// https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns
+
+function computed_urlfilters(steps) {
+	 console.debug("#computed_urlfilters" );
+	 
+	 // loop through all steps to get which querystring parameters are in scope for removal
+	 var reg = /qs/i;
+	 var filter = [];
+	 try{
+	 for (var i = 0; i < steps.length; i++){
+		    var obj = steps[i];
+		   // console.debug(JSON.stringify(obj));
+		    
+		    // only accept the qs_remove_param procedure
+		   // console.debug( "->" + obj.procedure + "<-");
+//		    console.debug( reg.test(obj.procedure ));
+		    if (reg.test(obj.procedure )){
+//		    	console.debug("£££££");
+//console.debug(obj.parameters);
+//console.debug(obj.parameters[0]);
+//console.debug(obj.parameters[0].value);
+			   
+		    	// anchor with "&"
+			    filter.push("*://*/*&" + obj.parameters[0].value +  "=*");
+		    	// anchor with "?"
+			    filter.push("*://*/*?" + obj.parameters[0].value +  "=*");
+
+		    }
+		    
+		}
+}catch(h){
+	 console.error(h);
+}
+console.debug("url match");
+console.debug(filter);
+return filter;
+}
+
+function computed_redirect_url(e) {
+	 console.debug("#setdata_webRequest" );
+	 console.debug(e);
+	 console.debug(JSON.stringify(e));
+	 
+	 var url = e.url;
+	 
+	 var new_url = url;
+	 try{
+	 
+	  // loop through all steps (rewrite rules) maximum of 100 steps
+    var i = 0;
+    while (i < 100 && i < steps.length){
+    	new_url = execute_rule_step(steps[i],new_url );
+    	//console.debug('#applying step: '+ JSON.stringify(steps[i]) + "to" + new_url );
+    
+    	i++;
+    }
+    
+	 }catch(h){
+		 console.error(h);
+	 }
+    console.info('URL-Tracker-Redactor replaces "' +e.url + '" with this URL: "' + new_url + '"');
+    return new_url;
+    
+}
+
+function setdata_webRequest(e) {
+	 console.debug("#setdata_webRequest" );
+	 console.debug(e);
+	 console.debug(JSON.stringify(e));
+	 
+	 var url = e.url;
+	 
+	 var new_url = url;
+	 try{
+	 
+	  // loop through all steps (rewrite rules)
+     var i = 0;
+     while (i < 12 && i < steps.length){
+     	new_url = execute_rule_step(steps[i],new_url );
+     	console.debug('URL-Tracker-Redactor replaces "' + qs + '" with this URL: "' + new_url + '"');
+     
+     	i++;
+     }
+     
+	 }catch(h){
+		 console.error(h);
+	 }
+     console.log('URL-Tracker-Redactor replaces "' + origin.href + '" with this URL: "' + new_url + '"');
+
+     e.url = new_url;
+     console.debug(JSON.stringify(e));
+     // issue a immediate redirect to the redacted URL.
+	 
+  if (capture_checkbox == true) {
+		 console.debug("capture_checkbox = true" );
+    if (not_on_exlude_list(e.url)) {
+		 console.debug("not on exclude list" );
+
+    	if (e.requestId.indexOf("fakeRequest") >= 0) {
+        return;
+      }
+      i = 0;
+      if (WEBREQUEST_DATA[e.requestId] == undefined) {
+        WEBREQUEST_DATA[e.requestId] = [];
+      }
+      while (true) {
+        if (e.typ == "onCompleted" || e.typ == "onResponseStarted") {
+          i = WEBREQUEST_DATA[e.requestId].length - 1;
+          WEBREQUEST_DATA[e.requestId][i][e.typ] = e;
+          break;
+        }
+        if (WEBREQUEST_DATA[e.requestId][i] == undefined) {
+          WEBREQUEST_DATA[e.requestId][i] = {};
+        }
+        if (WEBREQUEST_DATA[e.requestId][i][e.typ] != undefined) {
+          i++;
+        } else {
+          WEBREQUEST_DATA[e.requestId][i][e.typ] = e;
+          break;
+        }
+      }
+      set_data_html(e.requestId, i, e.typ);
+    }else{
+		 console.debug("is on exclude list" );
+
+    }
+  }else{
+		 console.debug("capture_checkbox = false" );
+
+  }
+}
+
+
+
+function notify(request) {
+	 console.debug("#notify" );
+  console.debug(request.data)
+  data = request.data;
+  for (value in data) {
+    //checked
+    if (value == "onBeforeRequest") {
+      document.getElementById("select_method").value = data[value].method;
+      document.getElementById("header_url").value = data[value].url;
+      string = "";
+      if (data[value].requestBody != undefined) {
+        if (data[value].requestBody.formData != undefined) {
+          for (var i in data[value].requestBody.formData) {
+            string += i + "=" + data[value].requestBody.formData[i] + "&";
+          }
+          string = string.substr(0, string.length - 1);
+        } else if (data[value].requestBody.raw != undefined) {
+          utf8decode = new TextDecoder("utf-8");
+          string = utf8decode.decode(data[value].requestBody.raw[0].bytes);
+        }
+      }
+      document.getElementById("post_data").textContent = string;
+      document.getElementById("content_length_label").textContent =
+        browser.i18n.getMessage("content_length_label") + string.length;
+    } else if (value == "onSendHeaders") {
+      string = "";
+      for (var i of data[value].requestHeaders) {
+        string += i.name + ": " + i.value + "\r\n";
+      }
+      document.getElementById("header_data").textContent = string;
+    } else if (value == "onAuthRequired") {
+    } else if (value == "onErrorOccurred") {
+    }
+  }
+}
+
+function replay_send() {
+	 console.debug("#replay_send" );
+  url = document.getElementById("header_url").value;
+  method = document.getElementById("select_method").value;
+  post = document.getElementById("post_data").textContent;
+  header = document.getElementById("header_data").textContent,
+    //console.log(header)
+    (temp_headers = header.replace(/\r\n/g, "<br>"));
+  temp_headers = temp_headers.split("<br>");
+  //console.log(temp_headers)
+  // The data we are going to send in our request
+  var myHeaders = new Headers();
+  for (temp_header of temp_headers) {
+    split = temp_header.split(": ", 2);
+    //console.log(split)
+    if (split != "") {
+      myHeaders.append(split[0], split[1]);
+    }
+  }
+  data = {
+    method: method
+  };
+  if (method != "GET") {
+    //console.log(post ,":",post.length,":", method)
+    myHeaders.delete("Content-type");
+    myHeaders.append(
+      "Content-type",
+      "application/x-www-form-urlencoded;charset=UTF-8"
+    );
+    //console.log(post ,":",post.length,":", method)
+    if (post.length != 0) {
+      data.body = post;
+    }
+  }
+  data.headers = myHeaders;
+  fetch(url, data)
+    .then(function(response) {
+      response.blob().then(function(data) {
+        objectURL = URL.createObjectURL(data);
+        //console.log(objectURL);
+        if (RESEND_TAB_NEW == true) {
+          if (RESENDED_TAB == true) {
+            tab_exists(objectURL);
+          } else {
+            RESENDED_TAB = true;
+            tab_create(objectURL);
+          }
+        } else {
+          tab_exists(objectURL);
+        }
+      });
+    })
+    .catch(function(err) {
+      console.error("Fetch Error:", err);
+    });
+}
+
+function tab_create(objectURL) {
+	 console.debug("#tab_create" );
+  browser.windows.getAll(
+    {
+      windowTypes: ["normal"]
+    },
+    function(getwindows) {
+      //console.log(getwindows)
+      for (windows of getwindows) {
+        if (windows.type == "normal") {
+          WINDOW_ID = windows.id;
+          break;
+        }
+      }
+      browser.tabs.create(
+        {
+          windowId: WINDOW_ID,
+          url: objectURL
+        },
+        function(tab) {
+          if (browser.runtime.lastError) {
+            onError(browser.runtime.lastError);
+          } else {
+            TAB_ID = tab.id;
+          }
+        }
+      );
+    }
+  );
+}
+
+function tab_exists(objectURL) {
+	 console.debug("#tab_exists" );
+  browser.tabs.get(TAB_ID, function() {
+    if (browser.runtime.lastError) {
+      tab_create(objectURL);
+    } else {
+      browser.tabs.update(
+        TAB_ID,
+        {
+          url: objectURL
+        },
+        function() {
+          //browser.tabs.create({url: bloburl} , function (){
+          if (browser.runtime.lastError) {
+            onError(browser.runtime.lastError);
+          }
+        }
+      );
+    }
+  });
+}
+
+function StorageChange() {
+	 console.debug("#StorageChange" );
+  //console.log("New Storage")
+  gettingItem = browser.storage.local.get(function(item) {
+    if (item["new_tab_open"] == true) {
+      RESEND_TAB_NEW = true;
+    } else {
+      RESEND_TAB_NEW = false;
+    }
+  });
+}
+
+function onError(error) {
+  console.error("Error:", error);
+  alert("Error:" + error);
+}
+browser.storage.onChanged.addListener(StorageChange);
+browser.runtime.onMessage.addListener(notify);
+document
+  .getElementById("replay_send_button")
+  .addEventListener("click", replay_send);
+document.getElementById("post_data").addEventListener("input", function() {
+  document.getElementById("content_length_label").textContent =
+    browser.i18n.getMessage("content_length_label") +
+    document.getElementById("post_data").textContent.length;
 });
-
-/*
- * Add context menu item for selection. User may select a text and have this
- * menuitem appear when righ-cliking on the selection The selection is sent
- * verbatim to search engine and top three results are presented in a message
- * box. Added in v 1.1
- */
- browser.contextMenus.create({
- id: "selected-text-lookup",
- title: "send text to search engine",
- contexts: ["selection"]
- });
-
 
 
 
@@ -89,30 +582,30 @@ indexedDB = window.indexedDB || window.webkitIndexedDB ||
 
 // listener for message sent from the admin page of the plugin
 browser.runtime.onMessage.addListener(function (message, sender, sendResponse) {
-	   console.log("message:" + JSON.stringify(message));
-	   console.log("sender:" + JSON.stringify(sender));
-	   console.log("sendResponse:" + sendResponse);
+	   console.debug("message:" + JSON.stringify(message));
+	   console.debug("sender:" + JSON.stringify(sender));
+	   console.debug("sendResponse:" + sendResponse);
 
-    console.log("received from page:  message: " + JSON.stringify(message) + " message.type=" + message.type);
+    console.debug("received from page:  message: " + JSON.stringify(message) + " message.type=" + message.type);
 
     
-    console.log("request:" + message[0]);
-    console.log("request:" + message.request);
+    console.debug("request:" + message[0]);
+    console.debug("request:" + message.request);
 
-    console.log("request:" + JSON.stringify(message.request));
-    console.log("request:" + JSON.stringify(message.request.sendRule));
+    console.debug("request:" + JSON.stringify(message.request));
+    console.debug("request:" + JSON.stringify(message.request.sendRule));
 
-    console.log("request:" + message.request.sendRule);
+    console.debug("request:" + message.request.sendRule);
 
-    console.log("request:" + message.linkurl);
+    console.debug("request:" + message.linkurl);
 
     try {
 
         if (message.request.sendRule == 'toEditPopup') {
-            console.log("contact edit popup:");
+            console.debug("contact edit popup:");
 
             var page_message = message.message;
-            console.log("page_message:" + page_message);
+            console.debug("page_message:" + page_message);
             // Simple example: Get data from extension's local storage
             // var result = localStorage.getItem('whatever');
             
@@ -125,7 +618,7 @@ browser.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
     
 } catch (e) {
-    console.log(e);
+    console.debug(e);
 }
 
     try {
@@ -136,9 +629,9 @@ browser.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     	
     	
         if (message && message.type == 'page') {
-            console.log("page_message:");
+            console.debug("page_message:");
             var page_message = message.message;
-            console.log("page_message:" + page_message);
+            console.debug("page_message:" + page_message);
             // Simple example: Get data from extension's local storage
             // var result = localStorage.getItem('whatever');
             var result = JSON.parse('{"test":"one"}');
@@ -147,7 +640,7 @@ browser.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         }
 
         if (message && message.request == 'skinny_lookup' && message.linkurl != '') {
-            console.log("look up :" + message.linkurl);
+            console.debug("look up :" + message.linkurl);
             var true_destination_url = "";
             true_destination_url = skinny_lookup(message.linkurl);
             sendResponse({
@@ -157,23 +650,23 @@ browser.runtime.onMessage.addListener(function (message, sender, sendResponse) {
             });
         }
     } catch (e) {
-        console.log(e);
+        console.debug(e);
     }
 
 });
 
 if (!window.indexedDB) {
-    console.log("Your browser doesn't support a stable version of IndexedDB. Such and such feature will not be available.");
+    console.debug("Your browser doesn't support a stable version of IndexedDB. Such and such feature will not be available.");
 } else {
-    console.log("1.1.0");
+    console.debug("1.1.0");
 }
 
 let pendingCollectedUrls = [];
 
 browser.contextMenus.onClicked.addListener((info, tab) => {
-    console.log("background.js: browser.contextMenus.onClicked.addListener");
-    console.log("background.js: browser.contextMenus.onClicked.addListener:info:" + JSON.stringify(info));
-    console.log("background.js: browser.contextMenus.onClicked.addListener:tab:" + JSON.stringify(tab));
+    console.debug("background.js: browser.contextMenus.onClicked.addListener");
+    console.debug("background.js: browser.contextMenus.onClicked.addListener:info:" + JSON.stringify(info));
+    console.debug("background.js: browser.contextMenus.onClicked.addListener:tab:" + JSON.stringify(tab));
 
     /*
 	 * When the user has selected from the context meny to revel the true end
@@ -181,15 +674,15 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
 	 * 
 	 */
     if (info.menuItemId == "glovebox-link-reveal") {
-        console.log("glovebox-link-reveal");
-        // console.log(info);
-        // console.log(tab);
+        console.debug("glovebox-link-reveal");
+        // console.debug(info);
+        // console.debug(tab);
         reveal_true_url_endpoint(info, tab);
 
     }else if (info.menuItemId == "selected-text-lookup") {
-        console.log("selected-text-lookup");
-        // console.log(info);
-        // console.log(tab);
+        console.debug("selected-text-lookup");
+        // console.debug(info);
+        // console.debug(tab);
         selected_text_lookup(info, tab);
 
     }
@@ -198,7 +691,7 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
     
     
     
-    console.log("#### request completed");
+    console.debug("#### request completed");
 });
 
 // add listener to open the admin page when user clicks on the icon in the
@@ -222,7 +715,7 @@ request.onupgradeneeded = function (event) {
     db.onerror = function (event) {};
     // Create an objectStore in this database to keep trusted decryption
     // keys
-    console.log("create objectstore sourceFulldomainRuleStore in sourceFulldomainRuleDB");
+    console.debug("create objectstore sourceFulldomainRuleStore in sourceFulldomainRuleDB");
     var objectStore2 = db.createObjectStore('sourceFulldomainRuleStore', {
             keyPath: 'keyId'
         });
@@ -232,15 +725,15 @@ request.onupgradeneeded = function (event) {
     });
 };
 request.onerror = function (event) {
-    console.log("dp open request error 201");
+    console.debug("dp open request error 201");
 };
 request.onsuccess = function (event) {
     db = event.target.result;
     db.onerror = function (event) {
-        console.log("db open request error 2");
+        console.debug("db open request error 2");
     };
     db.onsuccess = function (event) {
-        console.log("db open request success 2");
+        console.debug("db open request success 2");
     };
 };
 
@@ -250,7 +743,7 @@ request2.onupgradeneeded = function (event) {
     db.onerror = function (event) {};
     // Create an objectStore in this database to keep trusted decryption
     // keys
-    console.log("background.js: create objectstore sourceUrlRuleStore in sourceUrlRuleDB");
+    console.debug("background.js: create objectstore sourceUrlRuleStore in sourceUrlRuleDB");
     var objectStore2 = db.createObjectStore('sourceUrlRuleStore', {
             keyPath: 'keyId'
         });
@@ -260,15 +753,15 @@ request2.onupgradeneeded = function (event) {
     });
 };
 request2.onerror = function (event) {
-    console.log("background.js: dp open request error 201");
+    console.debug("background.js: dp open request error 201");
 };
 request2.onsuccess = function (event) {
     db = event.target.result;
     db.onerror = function (event) {
-        console.log("background.js: db open request error 2");
+        console.debug("background.js: db open request error 2");
     };
     db.onsuccess = function (event) {
-        console.log("background.js: db open request success 2");
+        console.debug("background.js: db open request success 2");
     };
 };
 
@@ -279,7 +772,7 @@ request2.onupgradeneeded = function (event) {
     db.onerror = function (event) {};
     // Create an objectStore in this database to keep trusted decryption
     // keys
-    console.log("background.js: create objectstore sourceDomainRuleStore in sourceDomainRuleDB");
+    console.debug("background.js: create objectstore sourceDomainRuleStore in sourceDomainRuleDB");
     objectStore2 = db.createObjectStore('sourceDomainRuleStore', {
             keyPath: 'keyId'
         });
@@ -289,15 +782,15 @@ request2.onupgradeneeded = function (event) {
     });
 };
 request2.onerror = function (event) {
-    console.log("background.js: dp open request error 201");
+    console.debug("background.js: dp open request error 201");
 };
 request2.onsuccess = function (event) {
     db = event.target.result;
     db.onerror = function (event) {
-        console.log("background.js: db open request error 2");
+        console.debug("background.js: db open request error 2");
     };
     db.onsuccess = function (event) {
-        console.log("background.js: db open request success 2");
+        console.debug("background.js: db open request success 2");
     };
 };
 
@@ -308,7 +801,7 @@ request2.onupgradeneeded = function (event) {
     db.onerror = function (event) {};
     // Create an objectStore in this database to keep trusted decryption
     // keys
-    console.log("background.js: create objectstore destinationDomainRuleStore in destinationDomainRuleDB");
+    console.debug("background.js: create objectstore destinationDomainRuleStore in destinationDomainRuleDB");
     objectStore2 = db.createObjectStore('destinationDomainRuleStore', {
             keyPath: 'keyId'
         });
@@ -318,15 +811,15 @@ request2.onupgradeneeded = function (event) {
     });
 };
 request2.onerror = function (event) {
-    console.log("background.js: dp open request error 201");
+    console.debug("background.js: dp open request error 201");
 };
 request2.onsuccess = function (event) {
     db = event.target.result;
     db.onerror = function (event) {
-        console.log("background.js: db open request error 2");
+        console.debug("background.js: db open request error 2");
     };
     db.onsuccess = function (event) {
-        console.log("background.js: db open request success 2");
+        console.debug("background.js: db open request success 2");
     };
 };
 
@@ -338,7 +831,7 @@ request2.onupgradeneeded = function (event) {
     db.onerror = function (event) {};
     // Create an objectStore in this database to keep trusted decryption
     // keys
-    console.log("background.js: create objectstore destinationFulldomainRuleStore in destinationFulldomainRuleDB");
+    console.debug("background.js: create objectstore destinationFulldomainRuleStore in destinationFulldomainRuleDB");
     objectStore2 = db.createObjectStore('destinationFulldomainRuleStore', {
             keyPath: 'keyId'
         });
@@ -348,15 +841,15 @@ request2.onupgradeneeded = function (event) {
     });
 };
 request2.onerror = function (event) {
-    console.log("background.js: dp open request error 201");
+    console.debug("background.js: dp open request error 201");
 };
 request2.onsuccess = function (event) {
     db = event.target.result;
     db.onerror = function (event) {
-        console.log("background.js: db open request error 2");
+        console.debug("background.js: db open request error 2");
     };
     db.onsuccess = function (event) {
-        console.log("background.js: db open request success 2");
+        console.debug("background.js: db open request success 2");
     };
 };
 
@@ -367,7 +860,7 @@ request6.onupgradeneeded = function (event) {
     db.onerror = function (event) {};
     // Create an objectStore in this database to keep trusted decryption
     // keys
-    console.log("background.js: create objectstore destinationUrlRuleStore in destinationUrlRuleDB");
+    console.debug("background.js: create objectstore destinationUrlRuleStore in destinationUrlRuleDB");
     var objectStore6 = db.createObjectStore('destinationUrlRuleStore', {
             keyPath: 'keyId'
         });
@@ -377,15 +870,15 @@ request6.onupgradeneeded = function (event) {
     });
 };
 request6.onerror = function (event) {
-    console.log("background.js: dp open request error 201");
+    console.debug("background.js: dp open request error 201");
 };
 request6.onsuccess = function (event) {
     db = event.target.result;
     db.onerror = function (event) {
-        console.log("background.js: db open request error 2");
+        console.debug("background.js: db open request error 2");
     };
     db.onsuccess = function (event) {
-        console.log("background.js: db open request success 2");
+        console.debug("background.js: db open request success 2");
     };
 };
 
@@ -397,7 +890,7 @@ generate_default_link_rules();
 
 
 function skinny_lookup(url, info) {
-    console.log("#start: skinny_lookup: " + url);
+    console.debug("#start: skinny_lookup: " + url);
     var true_destination_url = "";
     var xhr = new XMLHttpRequest();
     // mark "false" to indicate synchronous
@@ -406,34 +899,34 @@ function skinny_lookup(url, info) {
         // request plain text return to look for http-based redirects too
         // xhr.responseType = 'blob';
     } catch (e) {
-        console.log(e);
+        console.debug(e);
     }
     try {
         xhr.onload = function () {
-            console.log(xhr);
+            console.debug(xhr);
 
             // check for a Location HTTP header in the response
-            console.log(xhr);
+            console.debug(xhr);
             true_destination_url = xhr.responseURL;
         };
     } catch (e) {
-        console.log(e);
+        console.debug(e);
     }
-    xhr.onerror = () => console.log(xhr.statusText);
+    xhr.onerror = () => console.debug(xhr.statusText);
     try {
 
         xhr.send();
     } catch (e) {
-        // console.log(xhr);
-        console.log(e);
+        // console.debug(xhr);
+        console.debug(e);
     }
 
     try {
 
         return true_destination_url;
     } catch (e) {
-        // console.log(xhr);
-        console.log(e);
+        // console.debug(xhr);
+        console.debug(e);
     }
 }
 
@@ -445,9 +938,9 @@ function skinny_lookup(url, info) {
  */
 
 function selected_text_lookup(info, tab) {
-	  console.log("#start: selected_text_lookup");
-	  console.log(info);
-	  console.log(tab);
+	  console.debug("#start: selected_text_lookup");
+	  console.debug(info);
+	  console.debug(tab);
 }
 
 // receive notice when user rightclick on a link and selects "reveal the true
@@ -457,12 +950,12 @@ function selected_text_lookup(info, tab) {
 
 
 function reveal_true_url_endpoint(info, tab) {
- // console.log("#start: reveal_true_url_endpoint");
- // console.log(info);
- // console.log(tab);
+ // console.debug("#start: reveal_true_url_endpoint");
+ // console.debug(info);
+ // console.debug(tab);
 
-  // console.log("###calling ");
-    // console.log(destination_url_rules);
+  // console.debug("###calling ");
+    // console.debug(destination_url_rules);
 
     // information on which link was selected, use this to correctly
     // identify it in the content script.
@@ -474,10 +967,10 @@ function reveal_true_url_endpoint(info, tab) {
     var linkUrl = info.linkUrl;
     var linkText = info.linkText;
 
-    console.log("urlendpoint: " + info.linkUrl);
-   // console.log("tabId: " + tabId);
+    console.debug("urlendpoint: " + info.linkUrl);
+   // console.debug("tabId: " + tabId);
 
-    console.log("location page: " + info.pageUrl);
+    console.debug("location page: " + info.pageUrl);
 
     var true_destination_url = "";
 
@@ -486,7 +979,7 @@ function reveal_true_url_endpoint(info, tab) {
 
 
     var new_url = info.linkUrl;
-   // console.log("#### " + new_url);
+   // console.debug("#### " + new_url);
 
     // apply rules to generate new URL. The rules are a collection of
     // rewrite statements applied to the submitted URL.
@@ -506,30 +999,30 @@ function reveal_true_url_endpoint(info, tab) {
 
     // new_url = "";
     rules_enforcement(info.pageUrl, new_url).then(function(re){
-    	  // console.log("#### " + re);
+    	  // console.debug("#### " + re);
 
   		new_url = re;
     	
     
-    console.log("#### after first rewrite: " + new_url);
+    console.debug("#### after first rewrite: " + new_url);
     // if the rules caused the URL to be changed, there might also be rules
     // governing the new URL, so run through it again.
 
     return rules_enforcement(info.pageUrl, new_url);
     }).then(function (re){
     	new_url = re;
-    console.log("#### after second rewrite: " + new_url);
+    console.debug("#### after second rewrite: " + new_url);
     
 
     // new_url = rules_enforcement(info.pageUrl ,new_url);
-    // console.log("#### " + new_url);
+    // console.debug("#### " + new_url);
 
     // Call the URL by default if not rules applies to the URL.
     // If the URL has not been changed, assume no rule pertained to it, so
     // look it up directly.
 
 
-    // console.log("true_destination_url: " + true_destination_url );
+    // console.debug("true_destination_url: " + true_destination_url );
 
 
     // check linkURL against URL
@@ -544,8 +1037,8 @@ function reveal_true_url_endpoint(info, tab) {
         // verify that the URL satify the minimum requirements
         var url_wellformed_regexp = /.*/i;
 
-        // console.log(url_wellformed_regexp);
-        // console.log("url_wellformed_regexp.text("+url+"): " +
+        // console.debug(url_wellformed_regexp);
+        // console.debug("url_wellformed_regexp.text("+url+"): " +
         // url_wellformed_regexp.test(url));
         if (url.length > 9 && url_wellformed_regexp.test(url)) {
             true_destination_url = url;
@@ -558,7 +1051,7 @@ function reveal_true_url_endpoint(info, tab) {
         
         return rules_enforcement(info.pageUrl, true_destination_url);
     }).then(function (res) {
-console.log(res);
+console.debug(res);
          true_destination_url = res;
         
 
@@ -576,9 +1069,9 @@ console.log(res);
         });
 
     }).then(function (tabs) {
-// console.log(tabs);
+// console.debug(tabs);
         // send message back to the active tab
-        console.log("#call back to content script");
+        console.debug("#call back to content script");
         return browser.tabs.sendMessage(tabs[0].id, {
             targetElementId: targetElementId,
             true_destination_url: true_destination_url,
@@ -587,7 +1080,7 @@ console.log(res);
             success: "true"
         });
         // }).then(function (res) {
-        // console.log("###### getHTML response " + JSON.stringify(res));
+        // console.debug("###### getHTML response " + JSON.stringify(res));
         // glovebox_token_ciphertext = res.response.token;
 
     });
@@ -595,7 +1088,7 @@ console.log(res);
 }
 
 function getRedirectUrl(url) {
-    // console.log("##### getRedirectUrl.start: " + url);
+    // console.debug("##### getRedirectUrl.start: " + url);
     try {
         var p = new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
@@ -604,11 +1097,11 @@ function getRedirectUrl(url) {
                 xhr.onload = function () {
                     // resolve(xhr.response);
                     var reader = new FileReader();
-                    console.log(xhr.response);
-                    console.log(xhr);
+                    console.debug(xhr.response);
+                    console.debug(xhr);
 
                     // check for a Location HTTP header in the response
-                    // console.log(xhr.responseURL);
+                    // console.debug(xhr.responseURL);
 
                     var redirectURL = "";
 
@@ -634,15 +1127,15 @@ function getRedirectUrl(url) {
             });
         return p;
     } catch (e) {
-        console.log(e);
+        console.debug(e);
     }
 }
 
 function rules_enforcement(sourcePageUrl, url) {
 
-	// console.log("# rules_enforcement begin");
-	// console.log("sourcePageUrl: " + sourcePageUrl);
-	// console.log("url: " + url);
+	// console.debug("# rules_enforcement begin");
+	// console.debug("sourcePageUrl: " + sourcePageUrl);
+	// console.debug("url: " + url);
 	
     // apply rules to generate new URL. The rules are a collection of
     // rewrite statements applied to the submitted URL.
@@ -665,12 +1158,12 @@ function rules_enforcement(sourcePageUrl, url) {
     return new Promise(
             function (resolve, reject) {
 
-            	console.log("# rules_enforcement begin promise");
+            	console.debug("# rules_enforcement begin promise");
 
     // start with source-based rules.
     // these are rules based on the the url of the "page" where the links are
     // located.
-    console.log("source based rewriting");
+    console.debug("source based rewriting");
     // new_url = circumstantial_rules_enforcement(window.location.href,
     // new_url,source_url_rules,source_fulldomain_rules,source_domain_rules);
     // new_url = source_rules_enforcement(sourcePageUrl, new_url,
@@ -679,16 +1172,16 @@ function rules_enforcement(sourcePageUrl, url) {
 
     source_rules_enforcement(sourcePageUrl, new_url).then(function (two) {
         new_url = two;
-        console.log(new_url);
+        console.debug(new_url);
         // then do destination-based rules
         // note that this is in addition to any changes made above.
            return destination_rules_enforcement(new_url, new_url);
     }).then(function(n){
         new_url = n;
 
-    console.log(new_url);
+    console.debug(new_url);
 
-	console.log("# rules_enforcement promise resolved");
+	console.debug("# rules_enforcement promise resolved");
 
     resolve(new_url);
     });
@@ -700,13 +1193,13 @@ function rules_enforcement(sourcePageUrl, url) {
 // enforce rules that pertain to links found on the specified address.
 function source_rules_enforcement(location, linkurl) {
 
-	console.log("# source_rules_enforcement begin");
+	console.debug("# source_rules_enforcement begin");
 	
     var new_url = linkurl;
 
     return new Promise(
         function (resolve, reject) {
-        	console.log("# source_rules_enforcement begin promise");
+        	console.debug("# source_rules_enforcement begin promise");
 
         // use this to lookup any rules that may apply to links found on the
 		// page of
@@ -727,16 +1220,16 @@ function source_rules_enforcement(location, linkurl) {
         // sourceDomainRuleStore in sourceDomainRuleDB
         // sourceFulldomainRuleStore in sourceFulldomainRuleDB
         // create objectstore sourceUrlRuleStore in sourceUrlRuleDB");
-        console.log("lookup: " + domainport);
+        console.debug("lookup: " + domainport);
         
         try {
 
             loadFromIndexedDB_async("sourceDomainRuleDB", "sourceDomainRuleStore", domainport).then(function (three) {
-                console.log("########## 0");
-          // console.log(three);
+                console.debug("########## 0");
+          // console.debug(three);
 
                 if (three) {
-            console.log("carry out rule on: " + new_url);
+            console.debug("carry out rule on: " + new_url);
                     new_url = execute_rule(three, new_url);
                 }
 
@@ -748,35 +1241,35 @@ function source_rules_enforcement(location, linkurl) {
                 return loadFromIndexedDB_async("sourceFulldomainRuleDB", "sourceFulldomainRuleStore", protocolfulldomainport);
             }).then(function (one) {
 
-                console.log("########## 1");
-           // console.log(one);
+                console.debug("########## 1");
+           // console.debug(one);
                 if (one) {
-                    console.log("carry out rule on: " + new_url);
+                    console.debug("carry out rule on: " + new_url);
                     new_url = execute_rule(one, new_url);
 
                 }
 
                 return loadFromIndexedDB_async("sourceUrlRuleDB", "sourceUrlRuleStore", protocolfulldomainportpath);
             }).then(function (two) {
-                console.log("########## 2");
-            // console.log(two);
+                console.debug("########## 2");
+            // console.debug(two);
                 if (two) {
-                    console.log("carry out rule on: " + new_url);
+                    console.debug("carry out rule on: " + new_url);
                     new_url = execute_rule(two, new_url);
                 }
 
-                console.log("# # # #  resolve new_url: " + new_url);
-            	console.log("# source_rules_enforcement promise resolved");
+                console.debug("# # # #  resolve new_url: " + new_url);
+            	console.debug("# source_rules_enforcement promise resolved");
 
                 resolve(new_url);
 
             });
 
         } catch (e) {
-            console.log(e);
+            console.debug(e);
 
-            console.log("# # # # new_url: " + new_url);
-        	console.log("# source_rules_enforcement promise resolved");
+            console.debug("# # # # new_url: " + new_url);
+        	console.debug("# source_rules_enforcement promise resolved");
             resolve(new_url);
 
         }
@@ -794,13 +1287,13 @@ function destination_rules_enforcement(location, linkurl){
 	 * anything
 	 */
 	
-console.log("# destination_rules_enforcement begin");
+console.debug("# destination_rules_enforcement begin");
 	
     var new_url = linkurl;
 
     return new Promise(
         function (resolve, reject) {
-        	console.log("# destination_rules_enforcement begin promise");
+        	console.debug("# destination_rules_enforcement begin promise");
 
         // use this to lookup any rules that may apply to links found on the
 		// page of
@@ -821,16 +1314,16 @@ console.log("# destination_rules_enforcement begin");
         // sourceDomainRuleStore in sourceDomainRuleDB
         // sourceFulldomainRuleStore in sourceFulldomainRuleDB
         // create objectstore sourceUrlRuleStore in sourceUrlRuleDB");
-        console.log("lookup: " + domainport);
+        console.debug("lookup: " + domainport);
         
         try {
 
             loadFromIndexedDB_async("destinationDomainRuleDB", "destinationDomainRuleStore", domainport).then(function (three) {
-                console.log("########## 0");
-          // console.log(three);
+                console.debug("########## 0");
+          // console.debug(three);
 
                 if (three) {
-            console.log("carry out rule on: " + new_url);
+            console.debug("carry out rule on: " + new_url);
                     new_url = execute_rule(three, new_url);
                 }
 
@@ -842,35 +1335,35 @@ console.log("# destination_rules_enforcement begin");
                 return loadFromIndexedDB_async("destinationFulldomainRuleDB", "destinationFulldomainRuleStore", protocolfulldomainport);
             }).then(function (one) {
 
-                console.log("########## 1");
-           // console.log(one);
+                console.debug("########## 1");
+           // console.debug(one);
                 if (one) {
-                    console.log("carry out rule on: " + new_url);
+                    console.debug("carry out rule on: " + new_url);
                     new_url = execute_rule(one, new_url);
 
                 }
 
                 return loadFromIndexedDB_async("destinationUrlRuleDB", "destinationUrlRuleStore", protocolfulldomainportpath);
             }).then(function (two) {
-                console.log("########## 2");
-            // console.log(two);
+                console.debug("########## 2");
+            // console.debug(two);
                 if (two) {
-                    console.log("carry out rule on: " + new_url);
+                    console.debug("carry out rule on: " + new_url);
                     new_url = execute_rule(two, new_url);
                 }
 
-                console.log("# # # #  resolve new_url: " + new_url);
-            	console.log("# destination_rules_enforcement promise resolved");
+                console.debug("# # # #  resolve new_url: " + new_url);
+            	console.debug("# destination_rules_enforcement promise resolved");
 
                 resolve(new_url);
 
             });
 
         } catch (e) {
-            console.log(e);
+            console.debug(e);
 
-            console.log("# # # # new_url: " + new_url);
-        	console.log("# destination_rules_enforcement promise resolved");
+            console.debug("# # # # new_url: " + new_url);
+        	console.debug("# destination_rules_enforcement promise resolved");
             resolve(new_url);
 
         }
@@ -883,8 +1376,8 @@ console.log("# destination_rules_enforcement begin");
 
 
 function execute_rule_set(rule_set, url) {
-   // console.log("execute_rule_set");
-   // console.log(rule_set);
+   // console.debug("execute_rule_set");
+   // console.debug(rule_set);
     var new_url = "";
     new_url = url;
     for (let m = 0; m < rule_set.length; m++) {
@@ -896,10 +1389,10 @@ function execute_rule_set(rule_set, url) {
 
 
 function loadFromIndexedDB_async(dbName, storeName, id) {
-  // console.log("loadFromIndexedDB:0");
-  // console.log("loadFromIndexedDB:1 " + dbName);
-  // console.log("loadFromIndexedDB:2 " + storeName);
-  // console.log("loadFromIndexedDB:3 " + id);
+  // console.debug("loadFromIndexedDB:0");
+  // console.debug("loadFromIndexedDB:1 " + dbName);
+  // console.debug("loadFromIndexedDB:2 " + storeName);
+  // console.debug("loadFromIndexedDB:3 " + id);
 
     return new Promise(
         function (resolve, reject) {
@@ -916,18 +1409,18 @@ function loadFromIndexedDB_async(dbName, storeName, id) {
         };
 
         dbRequest.onsuccess = function (event) {
-            // console.log("loadFromIndexedDB:onsuccess ");
+            // console.debug("loadFromIndexedDB:onsuccess ");
 
             var database = event.target.result;
             var transaction = database.transaction([storeName]);
-            // console.log("loadFromIndexedDB:transaction: " +
+            // console.debug("loadFromIndexedDB:transaction: " +
             // JSON.stringify(transaction));
             var objectStore = transaction.objectStore(storeName);
-            // console.log("loadFromIndexedDB:objectStore: " +
+            // console.debug("loadFromIndexedDB:objectStore: " +
             // JSON.stringify(objectStore));
             var objectRequest = objectStore.get(id);
 
-            // console.log("loadFromIndexedDB:objectRequest: " +
+            // console.debug("loadFromIndexedDB:objectRequest: " +
             // JSON.stringify(objectRequest));
 
 
@@ -940,7 +1433,7 @@ function loadFromIndexedDB_async(dbName, storeName, id) {
 
                 objectRequest.onsuccess = function (event) {
                     if (objectRequest.result) {
-   // console.log("loadFromIndexedDB:result " +
+   // console.debug("loadFromIndexedDB:result " +
 	// JSON.stringify(objectRequest.result));
 
                         resolve(objectRequest.result);
@@ -952,7 +1445,7 @@ function loadFromIndexedDB_async(dbName, storeName, id) {
                 };
 
             } catch (error) {
-                console.log(error);
+                console.debug(error);
 
             }
 
@@ -965,29 +1458,29 @@ function execute_rule(rule, url) {
     var new_url = "";
     new_url = url;
     try {
-    // console.log("execute_rule url: " + url);
-    // console.log("execute_rule rule: " + JSON.stringify(rule));
-    // console.log("execute_rule: " + JSON.stringify(rule.steps));
-    // console.log("execute_rule: " + rule.steps.length);
+    // console.debug("execute_rule url: " + url);
+    // console.debug("execute_rule rule: " + JSON.stringify(rule));
+    // console.debug("execute_rule: " + JSON.stringify(rule.steps));
+    // console.debug("execute_rule: " + rule.steps.length);
         // loop through the steps contained in this rule
         // step-order is essential
         // the output of one is the input of the next
 
         for (var i = 0; i < rule.steps.length; i++) {
-   // console.log("### apply step: " + JSON.stringify(rule.steps[i]) + " to " +
+   // console.debug("### apply step: " + JSON.stringify(rule.steps[i]) + " to " +
 	// new_url);
             new_url = execute_rule_step(rule.steps[i], new_url);
         }
-   // console.log("### apply step: " + rule + " to " + new_url);
+   // console.debug("### apply step: " + rule + " to " + new_url);
     } catch (e) {}
     return new_url;
 }
 
 function execute_rule_step(rule_step, url) {
- // console.log("execute_rule_step");
+ // console.debug("execute_rule_step");
     var new_url = "";
     new_url = url;
- // console.log("### apply step: " + JSON.stringify(rule_step) + " to " +
+ // console.debug("### apply step: " + JSON.stringify(rule_step) + " to " +
 	// new_url);
 
     // syntax is STEP NAME ( PARAMETER VALUE)
@@ -999,7 +1492,7 @@ function execute_rule_step(rule_step, url) {
     // parameter_value = rule_step.replace(/[^(]*\(/i, '').replace(/\) *$/i,
     // '');
     // }
-    console.log("step_name: " + step_name);
+    console.debug("step_name: " + step_name);
     var parameter_value = "";
     try {
         // consider only cases with at most a single parameter
@@ -1007,9 +1500,8 @@ function execute_rule_step(rule_step, url) {
 
     } catch (e) {}
 
-    var param_regexp = rule_step.parameters[0];
-
-    console.log("parameter_value: " + parameter_value);
+ 
+    console.debug("parameter_value: " + parameter_value);
     switch (step_name) {
     case 'regexp':
         try {
@@ -1019,42 +1511,54 @@ function execute_rule_step(rule_step, url) {
             var delimiter = "";
             delimiter = parameter_value.replace(/^s(.).*/i, '$1');
             var flags_ext = new RegExp("[s]*" + delimiter + "[^" + delimiter + "]*" + delimiter + "[^" + delimiter + "]*" + delimiter + "(.*)$");
-            // console.log("flags_ext: " + flags_ext);
+            //console.debug("flags_ext: " + flags_ext);
             var flags = "";
             flags = parameter_value.replace(flags_ext, '$1').replace(/ /g, '');
-            // console.log("flags: " + flags);
+            // console.debug("flags: " + flags);
             var pattern_ext = new RegExp("[s]*" + delimiter + "([^" + delimiter + "]*)" + delimiter + ".*$");
-            // console.log("pattern_ext: " + pattern_ext);
+            // console.debug("pattern_ext: " + pattern_ext);
             var pattern = "";
             pattern = parameter_value.replace(pattern_ext, '$1');
-            // console.log("pattern: " + pattern);
+            // console.debug("pattern: " + pattern);
             var val_ext = new RegExp(".*" + delimiter + "([^" + delimiter + "]*)" + delimiter + "[ gi]*$");
             var val = "";
             val = parameter_value.replace(val_ext, '$1');
-            // console.log("val_ext: " + val_ext)
-            // console.log("return val: " + val)
-            // console.log(new RegExp(pattern, flags));
+            // console.debug("val_ext: " + val_ext)
+            // console.debug("return val: " + val)
+            // console.debug(new RegExp(pattern, flags));
             new_url = new_url.replace(new RegExp(pattern, flags), val);
         } catch (e) {
-            console.log(e);
+            console.debug(e);
         }
         break;
     case 'qs_param':
-        // console.log(new_url);
-        // console.log("get query string parameter named: " + parameter_value);
+        // console.debug(new_url);
+        // console.debug("get query string parameter named: " + parameter_value);
         var u = "";
         // remove everything infront of and behind the parameter
         var reg_exp2 = new RegExp(".*[?&]" + parameter_value + "=([^&]*).*");
-        // console.log(reg_exp2);
+        // console.debug(reg_exp2);
         u = new_url.replace(reg_exp2, '$1');
-        // console.log(u);
+        // console.debug(u);
         // remove everything infront of the parameter
         var reg_exp1 = new RegExp(".*[\?&]" + parameter_value + "=([^&]*)$");
-        // console.log(reg_exp1);
-        // console.log(u);
+        // console.debug(reg_exp1);
+        // console.debug(u);
         // u = url.replace(reg_exp1, '$1' );
         // new_url = url_rewrite_step_qs_param(new_url, parameter_value);
         new_url = u;
+        break;
+    case 'qs_remove_param':
+     //    console.debug(new_url);
+        // console.debug("get query string parameter named: " + parameter_value);
+        var u = "";
+        // remove everything infront of and behind the parameter
+        var reg_exp2 = new RegExp( "([\?&]{1,})" + parameter_value + "=[^&]{1,}([&]*)", 'gi');
+     //    console.debug(reg_exp2);
+       u = new_url.replace(reg_exp2, '$1$2');
+        
+        console.debug(u);
+        new_url = u.replace(new RegExp("&&*"), '&');
         break;
     case 'uri_decode':
         try {
@@ -1065,24 +1569,24 @@ function execute_rule_step(rule_step, url) {
         }
         break;
     case 'base64_decode':
-        console.log(new_url);
+        console.debug(new_url);
         new_url = atob(new_url);
         break;
     case 'JSON_path':
-        console.log(new_url);
-        console.log(JSON.parse(new_url)[parameter_value]);
+        console.debug(new_url);
+        console.debug(JSON.parse(new_url)[parameter_value]);
 
         new_url = JSON.parse(new_url)[parameter_value];
         break;
     case 'replace_with':
-        console.log(new_url);
+        console.debug(new_url);
         new_url = parameter_value;
         break;
     case 'skinny_lookup':
         // lookup the URL and if it returns a HTTP 403 redirect and a Location
         // header, insert that.
         // Itterate up to three times incase on redirect leads to another.
-        console.log("lookup the URL without revealing anything");
+        console.debug("lookup the URL without revealing anything");
         // new_url = parameter_value;
         break;
     default:
@@ -1096,53 +1600,13 @@ function execute_rule_step(rule_step, url) {
 
 function generate_default_link_rules() {
 
-    console.log("generate_default_link_rules begin");
+    console.debug("generate_default_link_rules begin");
 
     // add rule objects to database
     try {
         var p = [];
-        p.push(saveToIndexedDB_async('sourceFulldomainRuleDB', 'sourceFulldomainRuleStore', 'keyId', {
-                keyId: 'https://www.google.com/',
-                sourceFulldomain: 'https://www.google.com/',
-                url_match: 'https://www.google.com/',
-                scope: 'Fulldomain',
-                direction: 'source',
-                steps: [{
-                        procedure: "qs_param",
-                        parameters: [{
-                                value: "url",
-                                notes: "read url from querystring"
-                            }
-                        ],
-                        notes: "grab the url parameter from the querystring"
-                    }, {
-                        procedure: "uri_decode",
-                        parameters: [],
-                        notes: "uri decode"
-                    }
-                ],
-                notes: '',
-                createtime: '202001010001'
-            }));
-        p.push(saveToIndexedDB_async('sourceFulldomainRuleDB', 'sourceFulldomainRuleStore', 'keyId', {
-                keyId: 'https://www.facebook.com/',
-                sourceFulldomain: 'https://www.facebook.com/',
-                url_match: 'https://www.facebook.com/',
-                scope: 'Domain',
-                direction: 'source',
-                steps: [{
-                        procedure: "regexp",
-                        parameters: [{
-                                value: "sDfbclid=[^&]*DDg",
-                                notes: "remove fbclid from qs"
-                            }
-                        ],
-                        notes: "edit querystring"
-                    }
-                ],
-                notes: 'remove tracking id from urls to thrrd parties',
-                createtime: '202001010001'
-            }));
+      
+
 
         p.push(saveToIndexedDB_async('sourceDomainRuleDB', 'sourceDomainRuleStore', 'keyId', {
                 keyId: 'google.com',
@@ -1180,35 +1644,17 @@ function generate_default_link_rules() {
                     },{
                         procedure: "regexp",
                         parameters: [{
-                                value: "s/(utm|hsa)_[a-z]*=[^&]*//g",
-                                notes: "delete parameters with names starting with utm_ and hsa_"
+                                value: "s/(utm|hsa)_(source|campaign|medium|term|content)=[^&]*//g",
+                                notes: "delete parameters with names starting with utm_ and hsa_ and ending in source|campaign|medium|term|content"
                             }
                         ],
                         notes: "remove suspicious parameters from querystring"
                     }
                 ],
-                notes: 'remove tracking id from urls to thrrd parties',
+                notes: 'remove tracking id from all URLs',
                 createtime: '202001010001'
             }));
-        p.push(saveToIndexedDB_async('sourceFulldomainRuleDB', 'sourceFulldomainRuleStore', 'keyId', {
-                keyId: 'https://www.imdb.com/',
-                sourceFulldomain: 'https://www.imdb.com/',
-                url_match: 'https://www.imdb.com/',
-                scope: 'Fulldomain',
-                direction: 'source',
-                steps: [{
-                        procedure: "regexp",
-                        parameters: [{
-                                value: "sDcharDCHARDg",
-                                notes: "test"
-                            }
-                        ],
-                        notes: "test"
-                    }
-                ],
-                notes: 'test',
-                createtime: '202001010001'
-            }));
+
         p.push(saveToIndexedDB_async('sourceFulldomainRuleDB', 'sourceFulldomainRuleStore', 'keyId', {
                 keyId: 'https://www.linkedin.com/',
                 sourceFulldomain: 'https://www.linkedin.com/',
@@ -1223,324 +1669,40 @@ function generate_default_link_rules() {
                         }
                     ],
                     notes: "remove suspicious parameters from querystring"
-                },{
-                    procedure: "regexp",
-                    parameters: [{
-                            value: "s/[&]*li_fat_id=[^&]*//g",
-                            notes: "delete qs parameter with named li_fat_id"
-                        }
-                    ],
-                    notes: "remove extraneous parameter from querystring"
                 }
                 ],
                 notes: 'test',
                 createtime: '202001010001'
             }));
-        p.push(saveToIndexedDB_async('destinationDomainRuleDB', 'destinationDomainRuleStore', 'keyId', {
-                keyId: 'ct.sendgrid.net',
-                destinationDomain: 'ct.sendgrid.net',
-                url_match: 'ct.sendgrid.net',
-                scope: 'Domain',
-                direction: 'destination',
-                steps: [{
-                        procedure: "regexp",
-                        parameters: [{
-                                value: "sD-D%Dg",
-                                notes: "test"
-                            }
-                        ],
-                        notes: "test"
-                    }
-                ],
-                notes: 'test',
-                createtime: '202001010001'
-            }));
-        p.push(saveToIndexedDB_async('destinationFulldomainRuleDB', 'destinationFulldomainRuleStore', 'keyId', {
-                keyId: 'https://www.facebook.com/',
-                destinationFulldomain: 'https://www.facebook.com/',
-                url_match: 'https://www.facebook.com/',
-                scope: 'Fulldomain',
-                direction: 'destination',
-                steps: [{
-                        procedure: "regexp",
-                        parameters: [{
-                                value: "sD\\?.*DDg",
-                                notes: "test"
-                            }
-                        ],
-                        notes: "test"
-                    }
-                ],
-                notes: 'test',
-                createtime: '202001010001'
-            }));
-        p.push(saveToIndexedDB_async('destinationFulldomainRuleDB', 'destinationFulldomainRuleStore', 'keyId', {
-                keyId: 'http://ad.doubleclick.net/',
-                destinationFulldomain: 'http://ad.doubleclick.net/',
-                url_match: 'http://ad.doubleclick.net/',
-                scope: 'Fulldomain',
-                direction: 'destination',
-                steps: [{
-                        procedure: "regexp",
-                        parameters: [{
-                                value: "sD.*(http[s]*://[^&]*).*D$1Dg",
-                                notes: "test"
-                            }
-                        ],
-                        notes: "test"
-                    }, {
-                        procedure: "regexp",
-                        parameters: [{
-                                value: "sD\\?.*DDg",
-                                notes: "test"
-                            }
-                        ],
-                        notes: "test"
-                    }
-                ],
-                notes: 'test',
-                createtime: '202001010001'
-            }));
-        p.push(saveToIndexedDB_async('destinationFulldomainRuleDB', 'destinationFulldomainRuleStore', 'keyId', {
-            keyId: 'https://www.linkedin.com/',
-            destinationFulldomain: 'https://www.linkedin.com/',
-            url_match: 'https://www.linkedin.com/',
-            scope: 'Fulldomain',
-            direction: 'destination',
-            steps: [{
-                procedure: "regexp",
-                parameters: [{
-                        value: "s/trackingId=[^&]*//g",
-                        notes: "delete trackingId from querystring"
-                    }
-                ],
-                notes: "remove tracking token from querystring used inside the linkedin application"
-            }
-            ],
-            notes: 'remove tracker',
-            createtime: '202001010001'
-        }));
+     
+
+  
+     
+    
 
 
-        // boil
-        // https://ad.doubleclick.net/ddm/trackclk/N1114924.158707LINKEDIN/B25010089.299078854;dc_trk_aid=491804324;dc_trk_cid=142315430;dc_lat=;dc_rdid=;tag_for_child_directed_treatment=;tfua=;gdpr=$%7BGDPR%7D;gdpr_consent=$%7BGDPR_CONSENT_755%7D;ltd=?li_fat_id=e1558f7d-a9f8-41dc-9c34-a654161f74be
-        // https://ad.doubleclick.net/ddm/trackclk/N1114924.158707LINKEDIN/B25010089.299078854;dc_trk_aid=491804324;dc_trk_cid=142315430;dc_lat=;dc_rdid=;tag_for_child_directed_treatment=;tfua=;gdpr=$(GDPR);gdpr_consent=(GDPR_CONSENT_755);ltd=?li_fat_id=e1558f7d-a9f8-41dc-9c34-a654161f74be
-        // down to
-        // 'https://ad.doubleclick.net/ddm/trackclk/N1114924.158707LINKEDIN/B25010089.299078854;dc_trk_aid=491804324;dc_trk_cid=142315430;
-        // returns
-        // https://bcp.crwdcntrl.net/5/c=10025/camp_int=Advertiser_${9340650}^Campaign_${25010089}^clicks?https://www.ibm.com/cloud/bare-metal-servers?utm_content=000016GC&utm_term=10006171&p1=PSocial&p2=299078854&p3=142315430&dclid=CNjrjqPkmfACFdaNsgodXggDvQ
-        // which is turn must be reduced to
-        // https://www.ibm.com/cloud/bare-metal-servers
-
-        p.push(saveToIndexedDB_async('destinationFulldomainRuleDB', 'destinationFulldomainRuleStore', 'keyId', {
-                keyId: 'https://ad.doubleclick.net',
-                destinationFulldomain: 'https://ad.doubleclick.net',
-                url_match: 'https://ad.doubleclick.net',
-                scope: 'Fulldomain',
-                direction: 'destination',
-                destinationFulldomain: 'https://ad.doubleclick.net',
-                steps: [{
-                        procedure: "regexp",
-                        parameters: [{
-                                value: "sD\\?.*DDg",
-                                notes: "remove the querystring"
-                            }
-                        ],
-                        notes: "reduce to ;dc_trk_aid=11111111;dc_trk_cid=000000"
-                    }, {
-                        procedure: "regexp",
-                        parameters: [{
-                                value: "sD\\?.*DDg",
-                                notes: "remove semmi-colon separated parameters from path where no value has been set ;dc_rdid=  "
-                            }
-                        ],
-                        notes: "reduce to ;dc_trk_aid=11111111;dc_trk_cid=000000"
-                    }
-                ],
-                notes: 'test',
-                createtime: '202001010001'
-            }));
-
-        p.push(saveToIndexedDB_async('destinationUrlRuleDB', 'destinationUrlRuleStore', 'keyId', {
-                keyId: 'https://l.facebook.com/l.php',
-                destinationUrl: 'https://l.facebook.com/l.php',
-                url_match: 'https://l.facebook.com/l.php',
-                 scope: 'Url',
-                direction: 'destination',
-                steps: [{
-                        procedure: "qs_param",
-                        parameters: [{
-                                value: "u",
-                                notes: "read u from querystring"
-                            }
-                        ],
-                        notes: "grab the u parameter from the querystring"
-                    }, {
-                        procedure: "uri_decode",
-                        parameters: [{
-                            value: "N/A",
-                            notes: ""
-                        }
-                    ],
-                    notes: "uri decode"
-                    }
-                ],
-                notes: '',
-                createtime: '202001010001'
-            }));
-        p.push(saveToIndexedDB_async('destinationUrlRuleDB', 'destinationUrlRuleStore', 'keyId', {
-                keyId: 'https://www.google.com/url',
-                destinationUrl: 'https://www.google.com/url',
-                url_match: 'https://www.google.com/url',
-                scope: 'Url',
-                direction: 'destination',
-                steps: [{
-                        procedure: "qs_param",
-                        parameters: [{
-                                value: "url",
-                                notes: "read url from querystring"
-                            }
-                        ],
-                        notes: "grab the url parameter from the querystring"
-                    }, {
-                        procedure: "uri_decode",
-                        parameters: [{
-                            value: "N/A",
-                            notes: ""
-                        }
-                    ],notes: "uri decode"
-                    }
-                ],
-                notes: '',
-                createtime: '202001010001'
-            }));
-        p.push(saveToIndexedDB_async('destinationUrlRuleDB', 'destinationUrlRuleStore', 'keyId', {
-                keyId: 'https://ideas-admin.lego.com/mailing/email_link',
-                destinationUrl: 'https://ideas-admin.lego.com/mailing/email_link',
-                url_match: 'https://ideas-admin.lego.com/mailing/email_link',
-                scope: 'Url',
-                direction: 'destination',
-                steps: [{
-                        procedure: "qs_param",
-                        parameters: [{
-                                value: "payLoad",
-                                notes: "read payLoad from querystring"
-                            }
-                        ],
-                        notes: "grab the payLoad parameter from the querystring"
-                    }, {
-                        procedure: "uri_decode",
-                        parameters: [{
-                            value: "N/A",
-                            notes: ""
-                        }
-                    ],notes: "uri decode"
-                    }, {
-                        procedure: "base64_decode",
-                        parameters: [{
-                            value: "N/A",
-                            notes: ""
-                        }
-                    ],notes: "BASE64 decode"
-                    }, {
-                        procedure: "JSON_path",
-                        parameters: [{
-                                value: "url",
-                                notes: "read url from object"
-                            }
-                        ],
-                        notes: "get piece of JSON object"
-                    }
-                ],
-                notes: 'handle links embedded in emails from LEGO',
-                createtime: '202001010001'
-            }));
-        p.push(saveToIndexedDB_async('destinationUrlRuleDB', 'destinationUrlRuleStore', 'keyId', {
-                keyId: 'https://dagsavisen.us11.list-manage.com/track/click',
-                destinationUrl: 'https://dagsavisen.us11.list-manage.com/track/click',
-                url_match: 'https://dagsavisen.us11.list-manage.com/track/click',
-                 scope: 'Url',
-                direction: 'destination',
-                steps: [{
-                        procedure: "replace_with",
-                        parameters: [{
-                                value: "http://www.dagsavisen.no/minside",
-                                notes: "replace"
-                            },{
-                                value: "http://www.dagsavisen.no/minside2",
-                                notes: "replace2 "
-                            },{
-                                value: "http://www.dagsavisen.no/minside3",
-                                notes: "replace 3"
-                            }
-                        ],
-                        notes: "replace with http://www.dagsavisen.no/minside"
-                    }
-                ],
-                notes: 'test',
-                createtime: '202001010001'
-            }));
-        p.push(saveToIndexedDB_async('destinationUrlRuleDB', 'destinationUrlRuleStore', 'keyId', {
-                keyId: 'https://www.youtube.com/watch',
-                destinationUrl: 'https://www.youtube.com/watch',
-                url_match: 'https://www.youtube.com/watch',
-                scope: 'Url',
-                direction: 'destination',
-                steps: [{
-                        procedure: "regexp",
-                        parameters: [{
-                                value: "sD(\\?v=[^&]*).*D$1Dg",
-                                notes: "sed statement to remove all but the v parameter"
-                            }
-                        ],
-                        notes: "youtube videos should be short, leave only v parameter in query string"
-                    }
-                ],
-                notes: 'clean youtube URLs',
-                createtime: '202001010001'
-            }));
-        p.push(saveToIndexedDB_async('destinationUrlRuleDB', 'destinationUrlRuleStore', 'keyId', {
-                keyId: 'https://www.flysas.com/en/flexible-booking/',
-                destinationUrl: 'https://www.flysas.com/en/flexible-booking/',
-                url_match: 'https://www.flysas.com/en/flexible-booking/',
-                scope: 'Url',
-                direction: 'destination',
-                steps: [{
-                        procedure: "regexp",
-                        parameters: [{
-                                value: "s/eCodsId=[^&]*//g",
-                                notes: "sed-type regexp statement to delete CodsId from url"
-                            }
-                        ],
-                        notes: "remove piece of querystring"
-                    }
-                ],
-                notes: 'SAS tracing offers',
-                createtime: '202001010001'
-            }));
-
-        console.log(p);
+        console.debug(p);
         // Using .catch:
         Promise.all(p)
         .then(values => {
-            console.log(values);
+            console.debug(values);
         })
         .catch(error => {
             console.error(error.message)
         });
 
     } catch (f) {
-        console.log(f);
+        console.debug(f);
     }
 }
 
 
 function saveToIndexedDB_async(dbName, storeName, keyId, object) {
 
-    console.log("saveToIndexedDB_async:dbname " + dbName);
-    console.log("saveToIndexedDB_async:objectstorename " + storeName);
-    console.log("saveToIndexedDB_async:keyId " + keyId);
-    console.log("saveToIndexedDB_async:object " + JSON.stringify(object));
+    console.debug("saveToIndexedDB_async:dbname " + dbName);
+    console.debug("saveToIndexedDB_async:objectstorename " + storeName);
+    console.debug("saveToIndexedDB_async:keyId " + keyId);
+    console.debug("saveToIndexedDB_async:object " + JSON.stringify(object));
 
     // indexedDB = window.indexedDB || window.webkitIndexedDB ||
     // window.mozIndexedDB || window.msIndexedDB;
@@ -1548,8 +1710,8 @@ function saveToIndexedDB_async(dbName, storeName, keyId, object) {
     return new Promise(
         function (resolve, reject) {
 
-        // console.log("saveToIndexedDB: 0 resolve=" + resolve )
-        // console.log("saveToIndexedDB: 0 reject=" + reject )
+        // console.debug("saveToIndexedDB: 0 resolve=" + resolve )
+        // console.debug("saveToIndexedDB: 0 reject=" + reject )
 
         // if (object.taskTitle === undefined)
         // reject(Error('object has no taskTitle.'));
@@ -1560,59 +1722,59 @@ function saveToIndexedDB_async(dbName, storeName, keyId, object) {
 
             dbRequest = indexedDB.open(dbName);
         } catch (error) {
-            console.log(error);
+            console.debug(error);
 
         }
-        console.log("saveToIndexedDB_async: 1 dbRequest=" + dbRequest);
+        console.debug("saveToIndexedDB_async: 1 dbRequest=" + dbRequest);
 
         dbRequest.onerror = function (event) {
-            console.log("saveToIndexedDB:error.open:db " + dbName);
+            console.debug("saveToIndexedDB:error.open:db " + dbName);
             reject(Error("IndexedDB database error"));
         };
 
-        console.log("saveToIndexedDB: 2" + JSON.stringify(dbRequest));
+        console.debug("saveToIndexedDB: 2" + JSON.stringify(dbRequest));
 
         dbRequest.onupgradeneeded = function (event) {
-            console.log("saveToIndexedDB: 21");
+            console.debug("saveToIndexedDB: 21");
             var database = event.target.result;
-            console.log("saveToIndexedDB:db create obj store " + storeName);
+            console.debug("saveToIndexedDB:db create obj store " + storeName);
             var objectStore = database.createObjectStore(storeName, {
                     keyId: keyId
                 });
         };
 
-        console.log("saveToIndexedDB: 3" + JSON.stringify(dbRequest));
+        console.debug("saveToIndexedDB: 3" + JSON.stringify(dbRequest));
         try {
 
             dbRequest.onsuccess = function (event) {
-                console.log("saveToIndexedDB: 31");
+                console.debug("saveToIndexedDB: 31");
                 var database = event.target.result;
-                console.log("saveToIndexedDB: 32");
+                console.debug("saveToIndexedDB: 32");
                 var transaction = database.transaction([storeName], 'readwrite');
-                console.log("saveToIndexedDB: 33");
+                console.debug("saveToIndexedDB: 33");
                 var objectStore = transaction.objectStore(storeName);
-                console.log("saveToIndexedDB:objectStore put: " + JSON.stringify(object));
+                console.debug("saveToIndexedDB:objectStore put: " + JSON.stringify(object));
 
                 var objectRequest = objectStore.put(object); // Overwrite if
                 // already
                 // exists
 
-                console.log("saveToIndexedDB:objectRequest: " + JSON.stringify(objectRequest));
+                console.debug("saveToIndexedDB:objectRequest: " + JSON.stringify(objectRequest));
 
                 objectRequest.onerror = function (event) {
-                    console.log("saveToIndexedDB:error: " + storeName);
+                    console.debug("saveToIndexedDB:error: " + storeName);
 
                     reject(Error('Error text'));
                 };
 
                 objectRequest.onsuccess = function (event) {
-                    console.log("saveToIndexedDB:success: " + storeName);
+                    console.debug("saveToIndexedDB:success: " + storeName);
                     resolve('Data saved OK');
                 };
             };
 
         } catch (error) {
-            console.log(error);
+            console.debug(error);
 
         }
 
