@@ -75,7 +75,9 @@ browser.webRequest.onBeforeRequest.addListener(
   },
   ["requestBody"]
 );
-}catch(g){console.error(g);}
+}catch(g){
+	console.error(g);
+}
 
 
 document.addEventListener("click", function (evt) {
